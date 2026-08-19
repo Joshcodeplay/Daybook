@@ -1,0 +1,1401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Daybook</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root{
+  --paper:#FAFAF7;
+  --surface:#FFFFFF;
+  --line:#E3E0D6;
+  --line-strong:#CFCBBE;
+  --ink:#21261F;
+  --ink-soft:#63695F;
+  --ink-faint:#9A9689;
+  --teal:#1F6F63;
+  --teal-soft:#E4EFEC;
+  --amber:#C98A2A;
+  --amber-soft:#F7ECD9;
+  --rust:#B5451B;
+  --rust-soft:#F6E4DA;
+  --sage:#5C8A6A;
+  --sage-soft:#E4EEE3;
+  --plum:#6B4C6E;
+  --plum-soft:#EEE6EE;
+  --slate:#3F5D77;
+  --slate-soft:#E3EAEF;
+  --radius:10px;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);font-family:'Inter',sans-serif;min-height:100%;}
+html{height:100%;}
+body{min-height:100vh;min-height:100dvh;}
+.mono{font-family:'IBM Plex Mono',monospace;}
+.wrap{display:none;width:100%;min-height:100vh;min-height:100dvh;flex-direction:column;}
+.wrap.is-open{display:flex;}
+
+/* Header */
+.app-header{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  align-items:center;
+  gap:12px 20px;
+  padding:12px 24px;
+  background:var(--surface);
+  border-bottom:1px solid var(--line);
+  position:sticky;
+  top:0;
+  z-index:20;
+  width:100%;
+}
+.app-title{font-family:'Fraunces',serif;font-weight:600;font-size:24px;letter-spacing:-0.01em;margin:0;line-height:1;}
+.app-title span{color:var(--teal);}
+.app-sub{font-size:12px;color:var(--ink-faint);margin-top:2px;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.06em;}
+.header-actions{display:flex;align-items:center;gap:8px;justify-self:end;}
+.tabbar{display:flex;background:var(--paper);border:1px solid var(--line);border-radius:999px;padding:4px;gap:2px;justify-self:center;max-width:100%;overflow-x:auto;}
+.tabbar button{border:none;background:transparent;padding:8px 16px;border-radius:999px;font-family:'Inter',sans-serif;font-weight:600;font-size:13.5px;color:var(--ink-soft);cursor:pointer;transition:.15s;white-space:nowrap;}
+.tabbar button.active{background:var(--ink);color:#fff;}
+.tabbar button:not(.active):hover{color:var(--ink);}
+.app-main{flex:1;width:100%;padding:20px 24px 32px;min-width:0;}
+.app-main > div{width:100%;}
+
+/* generic buttons */
+.btn{border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);padding:8px 14px;border-radius:8px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:.15s;}
+.btn:hover{border-color:var(--ink);}
+.btn-primary{background:var(--ink);color:#fff;border-color:var(--ink);}
+.btn-primary:hover{background:#000;}
+.btn-teal{background:var(--teal);color:#fff;border-color:var(--teal);}
+.btn-teal:hover{background:#175951;}
+.btn-ghost{border-color:transparent;background:transparent;color:var(--ink-soft);}
+.btn-ghost:hover{color:var(--ink);background:var(--line);}
+.btn-sm{padding:5px 10px;font-size:12px;border-radius:6px;}
+.btn-danger{color:var(--rust);border-color:var(--rust-soft);background:var(--rust-soft);}
+.btn-danger:hover{background:#f0d2c2;}
+.icon-btn{width:28px;height:28px;border-radius:7px;border:1px solid var(--line);background:var(--surface);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink-soft);font-size:14px;}
+.icon-btn:hover{border-color:var(--ink);color:var(--ink);}
+
+input[type=text],input[type=date],input[type=password],select,textarea{
+  font-family:'Inter',sans-serif;font-size:13.5px;border:1px solid var(--line-strong);border-radius:7px;
+  padding:8px 10px;background:#fff;color:var(--ink);width:100%;
+}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--teal);outline-offset:1px;border-color:var(--teal);}
+label.field-label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-faint);font-weight:600;margin-bottom:5px;display:block;}
+
+/* ===== TASKS TAB ===== */
+.section-title{font-family:'Fraunces',serif;font-size:19px;font-weight:600;margin:26px 0 12px;display:flex;align-items:center;gap:8px;}
+.count-badge{font-family:'IBM Plex Mono',monospace;font-size:11px;background:var(--line);color:var(--ink-soft);padding:2px 8px;border-radius:999px;}
+
+.task-form{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px;margin-bottom:8px;display:none;}
+.task-form.open{display:block;}
+.form-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px;margin-bottom:12px;}
+.status-radios{display:flex;gap:8px;flex-wrap:wrap;}
+.status-radios label{display:flex;align-items:center;gap:6px;border:1px solid var(--line-strong);padding:7px 12px;border-radius:999px;font-size:12.5px;cursor:pointer;font-weight:600;color:var(--ink-soft);}
+.status-radios input{width:auto;}
+.status-radios label.checked{background:var(--teal-soft);border-color:var(--teal);color:var(--teal);}
+.form-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;}
+
+.lanes{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+.lane-head{font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:.07em;font-weight:600;padding-bottom:8px;margin-bottom:10px;border-bottom:2px solid;}
+.lane-head.not_started{color:var(--ink-soft);border-color:var(--line-strong);}
+.lane-head.in_progress{color:var(--amber);border-color:var(--amber);}
+.lane-head.assigned{color:var(--slate);border-color:var(--slate);}
+.lane{min-height:40px;}
+.lane-empty{font-size:12px;color:var(--ink-faint);font-style:italic;padding:10px 2px;}
+
+.task-card{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--line-strong);border-radius:9px;padding:12px 13px;margin-bottom:10px;}
+.task-card.not_started{border-left-color:var(--ink-faint);}
+.task-card.in_progress{border-left-color:var(--amber);}
+.task-card.assigned{border-left-color:var(--slate);}
+.task-title{font-weight:600;font-size:14px;margin-bottom:5px;}
+.task-meta{font-size:11.5px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;margin-bottom:4px;}
+.assignee-chip{display:inline-block;font-size:11px;background:var(--slate-soft);color:var(--slate);padding:2px 8px;border-radius:999px;font-weight:600;margin-top:2px;}
+.overdue{color:var(--rust);}
+.task-footer{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;}
+
+.completed-toggle{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;color:var(--ink-soft);font-weight:600;font-size:13px;}
+.completed-list{display:none;margin-top:10px;}
+.completed-list.open{display:block;}
+.completed-row{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 13px;margin-bottom:7px;}
+.completed-row .t{text-decoration:line-through;color:var(--ink-faint);font-size:13.5px;}
+.completed-row .meta{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--sage);}
+
+/* ===== BOARD TAB ===== */
+.board-controls{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;}
+.date-nav{display:flex;align-items:center;gap:8px;}
+.date-label{font-family:'Fraunces',serif;font-size:20px;font-weight:600;min-width:0;}
+.view-toggle{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden;}
+.view-toggle button{border:none;background:transparent;padding:7px 14px;font-size:12.5px;font-weight:600;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);cursor:pointer;border-right:1px solid var(--line);}
+.view-toggle button:last-child{border-right:none;}
+.view-toggle button.active{background:var(--ink);color:#fff;}
+
+.day-rail{display:flex;gap:6px;overflow-x:auto;padding:4px 2px 14px;margin-bottom:6px;}
+.rail-chip{flex:0 0 auto;width:52px;text-align:center;padding:8px 4px 7px;border-radius:9px;border:1px solid var(--line);background:var(--surface);cursor:pointer;}
+.rail-chip .wd{font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.04em;}
+.rail-chip .dn{font-family:'Fraunces',serif;font-size:17px;font-weight:600;margin-top:2px;}
+.rail-chip .dot{width:5px;height:5px;border-radius:50%;background:var(--teal);margin:4px auto 0;visibility:hidden;}
+.rail-chip.has-data .dot{visibility:visible;}
+.rail-chip.today{border-color:var(--teal);}
+.rail-chip.selected{background:var(--ink);border-color:var(--ink);}
+.rail-chip.selected .wd,.rail-chip.selected .dn{color:#fff;}
+.rail-chip.selected .dot{background:#fff;}
+
+.member-manage{display:flex;justify-content:flex-end;margin-bottom:10px;}
+
+.day-list{display:flex;flex-direction:column;gap:10px;}
+.member-row{display:grid;grid-template-columns:150px 1fr 1fr;gap:12px;align-items:start;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;}
+.member-tag{display:flex;align-items:center;gap:8px;}
+.member-tag-wrap{display:flex;flex-direction:column;}
+.avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:12px;font-family:'Inter',sans-serif;flex:0 0 auto;}
+.member-name{font-weight:600;font-size:13.5px;}
+.save-tick{font-size:10px;color:var(--sage);font-family:'IBM Plex Mono',monospace;opacity:0;transition:opacity .3s;}
+.save-tick.show{opacity:1;}
+
+.week-scroll{width:100%;overflow-x:auto;}
+table.week-grid{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden;}
+table.week-grid th,table.week-grid td{border:1px solid var(--line);padding:9px 10px;text-align:left;vertical-align:top;font-size:12.5px;}
+table.week-grid th{background:var(--paper);font-family:'IBM Plex Mono',monospace;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);cursor:pointer;}
+table.week-grid th.today-col{color:var(--teal);}
+table.week-grid td{cursor:pointer;}
+table.week-grid td:hover{background:var(--teal-soft);}
+table.week-grid td .snippet{color:var(--ink);}
+table.week-grid td .empty{color:var(--ink-faint);font-style:italic;}
+table.week-grid td .cm{color:var(--ink-faint);font-size:11px;margin-top:2px;}
+
+.month-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+.month-grid .wd-head{font-family:'IBM Plex Mono',monospace;font-size:10px;text-align:center;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.05em;padding-bottom:4px;}
+.month-cell{background:var(--surface);border:1px solid var(--line);border-radius:8px;min-height:64px;padding:7px 8px;cursor:pointer;}
+.month-cell:hover{border-color:var(--teal);}
+.month-cell.blank{background:transparent;border:none;cursor:default;}
+.month-cell.today{border-color:var(--teal);border-width:2px;}
+.month-cell .dn{font-family:'Fraunces',serif;font-weight:600;font-size:14px;}
+.month-cell .badge{margin-top:6px;font-family:'IBM Plex Mono',monospace;font-size:10px;background:var(--teal-soft);color:var(--teal);padding:1px 6px;border-radius:999px;display:inline-block;}
+.month-cell .badge-leave{margin-top:4px;margin-left:4px;font-family:'IBM Plex Mono',monospace;font-size:10px;background:var(--rust-soft);color:var(--rust);padding:1px 6px;border-radius:999px;display:inline-block;font-weight:700;}
+
+/* leave */
+.leave-toggle{font-size:10.5px;color:var(--rust);display:flex;align-items:center;gap:5px;margin-top:8px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:.03em;}
+.leave-toggle input{width:auto;accent-color:var(--rust);cursor:pointer;}
+.member-row.on-leave{border-color:var(--rust);background:var(--rust-soft);}
+.leave-banner{background:var(--rust);color:#fff;font-weight:700;font-size:12.5px;padding:9px 10px;border-radius:7px;text-align:center;letter-spacing:.02em;}
+table.week-grid td.leave-cell{background:var(--rust-soft);}
+table.week-grid td.leave-cell:hover{background:#f0cfbb;}
+.leave-tag{color:var(--rust);font-weight:700;}
+
+/* ===== VAULT TAB ===== */
+.vault-warning{background:var(--rust-soft);color:var(--rust);border-radius:9px;padding:11px 14px;font-size:12.5px;font-weight:500;margin-bottom:18px;line-height:1.5;}
+.vault-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;}
+.vault-card{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--plum);border-radius:9px;padding:13px 14px;}
+.vault-platform{font-weight:700;font-size:14.5px;margin-bottom:8px;font-family:'Fraunces',serif;}
+.vault-row{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12.5px;padding:5px 0;border-bottom:1px dashed var(--line);}
+.vault-row:last-of-type{border-bottom:none;}
+.vault-row .k{color:var(--ink-faint);font-family:'IBM Plex Mono',monospace;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;flex:0 0 auto;}
+.vault-row .v{font-family:'IBM Plex Mono',monospace;flex:1;min-width:0;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink);}
+.vault-row .v a{color:var(--slate);text-decoration:none;}
+.vault-row .v a:hover{text-decoration:underline;}
+.vault-pw{
+  flex:1 1 auto;min-width:0;width:auto;max-width:100%;
+  font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:500;
+  text-align:right;border:none;background:transparent;padding:2px 0;color:var(--ink);
+  letter-spacing:.02em;
+}
+.vault-pw:focus{outline:none;}
+.vault-actions{display:flex;gap:5px;flex:0 0 auto;}
+.vault-footer{display:flex;gap:6px;margin-top:11px;flex-wrap:wrap;}
+.extra-field-row{display:flex;gap:8px;margin-bottom:8px;}
+.extra-field-row input{flex:1;}
+.pw-field-wrap{display:flex;align-items:center;gap:6px;}
+.pw-field-wrap input{flex:1;min-width:0;width:auto;}
+
+
+.modal-backdrop{position:fixed;inset:0;background:rgba(33,38,31,.4);display:none;align-items:center;justify-content:center;z-index:50;}
+.modal-backdrop.open{display:flex;}
+.modal{background:#fff;border-radius:12px;padding:22px;width:380px;max-width:90vw;max-height:80vh;overflow:auto;}
+.modal h3{font-family:'Fraunces',serif;margin:0 0 14px;font-size:18px;}
+.member-edit-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+.member-edit-row .swatch{width:22px;height:22px;border-radius:50%;flex:0 0 auto;}
+
+.empty-note{font-size:12.5px;color:var(--ink-faint);font-style:italic;padding:12px 2px;}
+
+/* ===== AUTH ===== */
+.auth-gate{position:fixed;inset:0;background:var(--paper);display:flex;align-items:center;justify-content:center;z-index:80;padding:24px;}
+.auth-gate.hidden{display:none;}
+.auth-card{width:400px;max-width:100%;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:28px 26px 24px;}
+.auth-card .app-title{margin-bottom:4px;}
+.auth-card .app-sub{margin-bottom:18px;}
+.auth-toggle{display:flex;background:var(--paper);border:1px solid var(--line);border-radius:999px;padding:4px;gap:2px;margin-bottom:18px;}
+.auth-toggle button{flex:1;border:none;background:transparent;padding:8px 12px;border-radius:999px;font-family:'Inter',sans-serif;font-weight:600;font-size:13px;color:var(--ink-soft);cursor:pointer;}
+.auth-toggle button.active{background:var(--ink);color:#fff;}
+.auth-card form{display:flex;flex-direction:column;gap:4px;}
+.auth-card form input{margin-bottom:10px;}
+.auth-card .btn{width:100%;margin-top:6px;padding:10px 14px;}
+.auth-error{min-height:18px;font-size:12.5px;color:var(--rust);font-weight:600;margin:2px 0 4px;}
+.user-menu{display:flex;align-items:center;gap:8px;}
+.user-chip{font-family:'IBM Plex Mono',monospace;font-size:11.5px;background:var(--teal-soft);color:var(--teal);padding:5px 10px;border-radius:999px;font-weight:600;}
+.user-chip.admin{background:var(--amber-soft);color:var(--amber);}
+.admin-user{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:12px 14px;margin-bottom:8px;flex-wrap:wrap;}
+.admin-user .name{font-weight:600;font-size:14px;}
+.admin-user .meta{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-faint);margin-top:3px;}
+.status-pill{font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:3px 8px;border-radius:999px;}
+.status-pill.pending{background:var(--amber-soft);color:var(--amber);}
+.status-pill.approved{background:var(--sage-soft);color:var(--sage);}
+.status-pill.rejected{background:var(--rust-soft);color:var(--rust);}
+.status-pill.admin{background:var(--plum-soft);color:var(--plum);}
+
+@media(max-width:960px){
+  .app-header{
+    grid-template-columns:1fr auto;
+    padding:12px 16px;
+  }
+  .tabbar{grid-column:1 / -1; justify-self:stretch; width:100%;}
+  .tabbar button{flex:1;}
+  .app-main{padding:16px 16px 28px;}
+  .form-grid{grid-template-columns:1fr 1fr;}
+  .lanes{grid-template-columns:1fr 1fr;}
+  .member-row{grid-template-columns:140px 1fr 1fr;}
+}
+@media(max-width:720px){
+  .form-grid,.lanes,.member-row{grid-template-columns:1fr;}
+  .date-label{font-size:17px;}
+  table.week-grid{min-width:680px;}
+  .month-grid{gap:4px;}
+  .month-cell{min-height:56px;padding:6px;}
+}
+</style>
+</head>
+<body>
+<div id="auth-gate" class="auth-gate">
+  <div class="auth-card">
+    <h1 class="app-title">Day<span>book</span></h1>
+    <div class="app-sub" id="auth-sub">sign in to your workspace</div>
+    <div class="auth-toggle">
+      <button type="button" id="auth-tab-in" class="active" onclick="setAuthMode('in')">Sign in</button>
+      <button type="button" id="auth-tab-up" onclick="setAuthMode('up')">Create account</button>
+    </div>
+    <form onsubmit="submitAuth(event)">
+      <label class="field-label">Username</label>
+      <input type="text" id="auth-username" autocomplete="username" maxlength="64" placeholder="e.g. joshua or admin" required>
+      <div class="empty-note" style="padding:0 0 10px;">Spaces, dots, and hyphens are fine. First account becomes admin.</div>
+      <label class="field-label">Password</label>
+      <input type="password" id="auth-password" autocomplete="current-password" required>
+      <div id="auth-confirm-wrap" style="display:none;">
+        <label class="field-label">Confirm password</label>
+        <input type="password" id="auth-confirm" autocomplete="new-password">
+      </div>
+      <div id="auth-error" class="auth-error"></div>
+      <button class="btn btn-teal" type="submit" id="auth-submit">Sign in</button>
+    </form>
+  </div>
+</div>
+
+<div class="wrap" id="app-shell">
+  <header class="app-header">
+    <h1 class="app-title">Day<span>book</span></h1>
+    <nav class="tabbar">
+      <button id="tab-tasks" class="active" onclick="switchTab('tasks')">My Tasks</button>
+      <button id="tab-board" onclick="switchTab('board')">Team Day Board</button>
+      <button id="tab-vault" onclick="switchTab('vault')">Vault</button>
+      <button id="tab-admin" onclick="switchTab('admin')" style="display:none;">Admin</button>
+    </nav>
+    <div class="header-actions">
+      <span class="user-chip" id="user-chip"></span>
+      <button class="btn btn-sm" onclick="exportToExcel()">Download Excel</button>
+      <button class="btn btn-sm btn-ghost" onclick="logout()">Log out</button>
+    </div>
+  </header>
+  <main class="app-main">
+    <div id="tasks-view"></div>
+    <div id="board-view" style="display:none;"></div>
+    <div id="vault-view" style="display:none;"></div>
+    <div id="admin-view" style="display:none;"></div>
+  </main>
+</div>
+
+<div class="modal-backdrop" id="member-modal">
+  <div class="modal">
+    <h3>Team members</h3>
+    <div id="member-edit-list"></div>
+    <button class="btn btn-sm" onclick="addMemberRow()">+ Add member</button>
+    <div class="form-actions">
+      <button class="btn btn-ghost btn-sm" onclick="closeMemberModal()">Cancel</button>
+      <button class="btn btn-teal btn-sm" onclick="saveMemberModal()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const PALETTE = [
+  {name:'teal', bg:'#1F6F63'}, {name:'amber', bg:'#C98A2A'}, {name:'plum', bg:'#6B4C6E'},
+  {name:'slate', bg:'#3F5D77'}, {name:'rust', bg:'#B5451B'}, {name:'sage', bg:'#5C8A6A'}
+];
+const WEEKDAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+let teamMembers = [];
+let tasks = [];
+let monthCache = {};   // ym -> {dd: {memberId:{task,comment}}}
+let saveTimers = {};
+let currentTab = 'tasks';
+let boardDate = new Date();
+let boardView = 'day';
+let taskFormOpen = false;
+let editingTaskId = null;
+let completedOpen = false;
+let editingMembers = [];
+let vaultEntries = [];
+let vaultFormOpen = false;
+let editingVaultId = null;
+let vaultExtraFields = [];
+let revealedVaultIds = new Set();
+let revealedPasswordInForm = false;
+let currentUser = null;
+let authMode = 'in';
+let adminUsers = [];
+const USERS_KEY = 'users-v1';
+const SESSION_KEY = 'daybook:session';
+
+function pad(n){ return String(n).padStart(2,'0'); }
+function ymOf(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1); }
+function ddOf(d){ return pad(d.getDate()); }
+function isoOf(d){ return ymOf(d)+'-'+ddOf(d); }
+function sameDay(a,b){ return isoOf(a)===isoOf(b); }
+function todayDate(){ const t=new Date(); t.setHours(0,0,0,0); return t; }
+function addDays(d,n){ const r=new Date(d); r.setDate(r.getDate()+n); return r; }
+function fmtLabel(d){
+  const opts={weekday:'long', day:'2-digit', month:'short', year:'numeric'};
+  return d.toLocaleDateString('en-GB', opts);
+}
+function fmtShort(iso){
+  const [y,m,dd]=iso.split('-');
+  const d=new Date(+y,+m-1,+dd);
+  return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+}
+
+/* ---------- storage helpers ----------
+   Prefer the local SQLite API when Daybook is served by `npm start`.
+   If the API is missing (GitHub Pages or opening the HTML file directly),
+   fall back to this browser's localStorage so the UI still works.
+   App data is namespaced per signed-in user so accounts stay separate. */
+let API_AVAILABLE = false;
+
+async function detectApi(){
+  try{
+    const r = await fetch('/api/health', { cache: 'no-store' });
+    if(!r.ok) return false;
+    const data = await r.json();
+    return !!(data && data.ok);
+  }catch(e){ return false; }
+}
+
+function scopedKey(key){
+  if(!currentUser) return key;
+  return 'u:' + currentUser.username + ':' + key;
+}
+
+async function rawGet(key, fallback){
+  if(API_AVAILABLE){
+    try{
+      const r = await fetch('/api/kv/' + encodeURIComponent(key), { cache: 'no-store' });
+      if(r.status === 404) return fallback;
+      if(!r.ok) return fallback;
+      const data = await r.json();
+      return data.value != null ? data.value : fallback;
+    }catch(e){ return fallback; }
+  }
+  try{
+    const v = localStorage.getItem('daybook:'+key);
+    return v ? JSON.parse(v) : fallback;
+  }catch(e){ return fallback; }
+}
+async function rawSet(key, value){
+  if(API_AVAILABLE){
+    try{
+      await fetch('/api/kv/' + encodeURIComponent(key), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value })
+      });
+    }catch(e){ console.error('storage set failed', key, e); }
+    return;
+  }
+  try{ localStorage.setItem('daybook:'+key, JSON.stringify(value)); }
+  catch(e){ console.error('storage set failed', key, e); }
+}
+async function rawListKeys(prefix){
+  if(API_AVAILABLE){
+    try{
+      const r = await fetch('/api/keys?prefix=' + encodeURIComponent(prefix), { cache: 'no-store' });
+      const data = await r.json();
+      return data.keys || [];
+    }catch(e){ return []; }
+  }
+  const keys=[];
+  const full = 'daybook:'+prefix;
+  for(let i=0;i<localStorage.length;i++){
+    const k = localStorage.key(i);
+    if(k && k.startsWith(full)) keys.push(k.slice('daybook:'.length));
+  }
+  return keys;
+}
+
+async function storageGet(key, fallback){ return rawGet(scopedKey(key), fallback); }
+async function storageSet(key, value){ return rawSet(scopedKey(key), value); }
+async function storageListKeys(prefix){
+  const userPrefix = currentUser ? 'u:' + currentUser.username + ':' : '';
+  const keys = await rawListKeys(scopedKey(prefix));
+  return keys.map(k => userPrefix && k.startsWith(userPrefix) ? k.slice(userPrefix.length) : k);
+}
+
+function bytesToB64(bytes){
+  let s = '';
+  bytes.forEach(b => s += String.fromCharCode(b));
+  return btoa(s);
+}
+function b64ToBytes(b64){
+  return Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+}
+async function hashPassword(password, saltB64){
+  const salt = saltB64 ? b64ToBytes(saltB64) : crypto.getRandomValues(new Uint8Array(16));
+  const material = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({ name:'PBKDF2', salt, iterations:150000, hash:'SHA-256' }, material, 256);
+  return { hash: bytesToB64(new Uint8Array(bits)), salt: bytesToB64(salt) };
+}
+
+function isAdmin(){
+  return !!(currentUser && currentUser.role === 'admin');
+}
+
+async function loadUsers(){
+  const users = await rawGet(USERS_KEY, []);
+  return ensureUserRoles(users);
+}
+
+async function ensureUserRoles(users){
+  let changed = false;
+  if(users.length && !users.some(u => u.role === 'admin')){
+    const first = [...users].sort((a,b)=>(a.createdAt||'').localeCompare(b.createdAt||''))[0];
+    first.role = 'admin';
+    first.status = 'approved';
+    changed = true;
+  }
+  for(const u of users){
+    if(!u.role){ u.role = 'user'; changed = true; }
+    if(!u.status){ u.status = u.role === 'admin' ? 'approved' : 'pending'; changed = true; }
+  }
+  if(changed) await rawSet(USERS_KEY, users);
+  return users;
+}
+
+function setAuthMode(mode){
+  authMode = mode;
+  document.getElementById('auth-tab-in').classList.toggle('active', mode==='in');
+  document.getElementById('auth-tab-up').classList.toggle('active', mode==='up');
+  document.getElementById('auth-confirm-wrap').style.display = mode==='up' ? 'block' : 'none';
+  document.getElementById('auth-submit').textContent = mode==='up' ? 'Request access' : 'Sign in';
+  document.getElementById('auth-sub').textContent = mode==='up'
+    ? 'new accounts wait for admin approval'
+    : 'sign in to your workspace';
+  document.getElementById('auth-password').autocomplete = mode==='up' ? 'new-password' : 'current-password';
+  document.getElementById('auth-error').textContent = '';
+}
+
+function showAuthError(msg){
+  document.getElementById('auth-error').textContent = msg || '';
+}
+
+function sessionFromUser(user){
+  return { username: user.username, role: user.role || 'user', status: user.status || 'pending' };
+}
+
+function normalizeUsername(raw){
+  return (raw || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '_')
+    .replace(/[^a-z0-9._@-]/g, '');
+}
+
+function isValidUsername(name){
+  return name.length >= 3 && name.length <= 64 && /^[a-z0-9._@-]+$/.test(name);
+}
+
+function accessMessage(user){
+  if(user.status === 'pending') return 'This account is waiting for admin approval.';
+  if(user.status === 'rejected') return 'This account was denied. Ask an admin to restore access.';
+  return '';
+}
+
+async function submitAuth(event){
+  event.preventDefault();
+  const username = normalizeUsername(document.getElementById('auth-username').value);
+  const password = document.getElementById('auth-password').value || '';
+  if(username.length < 3){
+    showAuthError('Username must be at least 3 characters. Spaces are converted to underscores.');
+    return;
+  }
+  if(!isValidUsername(username)){
+    showAuthError('Use letters and numbers. Spaces, dots, @, and hyphens are also allowed.');
+    return;
+  }
+  document.getElementById('auth-username').value = username;
+  if(password.length < 6){
+    showAuthError('Password must be at least 6 characters.');
+    return;
+  }
+
+  const users = await loadUsers();
+  if(authMode === 'up'){
+    const confirm = document.getElementById('auth-confirm').value || '';
+    if(password !== confirm){
+      showAuthError('Passwords do not match.');
+      return;
+    }
+    if(users.some(u => u.username === username)){
+      showAuthError('That username is already taken.');
+      return;
+    }
+    const hashed = await hashPassword(password);
+    const isFirst = users.length === 0;
+    const record = {
+      username,
+      hash: hashed.hash,
+      salt: hashed.salt,
+      createdAt: isoOf(new Date()),
+      role: isFirst ? 'admin' : 'user',
+      status: isFirst ? 'approved' : 'pending'
+    };
+    users.push(record);
+    await rawSet(USERS_KEY, users);
+    if(!isFirst){
+      setAuthMode('in');
+      document.getElementById('auth-username').value = username;
+      document.getElementById('auth-password').value = '';
+      document.getElementById('auth-confirm').value = '';
+      showAuthError('Account created. An admin must approve you before you can sign in.');
+      return;
+    }
+    currentUser = sessionFromUser(record);
+    await migrateLegacyData(username);
+  } else {
+    const user = users.find(u => u.username === username);
+    if(!user){
+      showAuthError('No account with that username.');
+      return;
+    }
+    const hashed = await hashPassword(password, user.salt);
+    if(hashed.hash !== user.hash){
+      showAuthError('Incorrect password.');
+      return;
+    }
+    const blocked = accessMessage(user);
+    if(blocked){
+      showAuthError(blocked);
+      return;
+    }
+    currentUser = sessionFromUser(user);
+  }
+
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify(currentUser));
+  await enterApp();
+}
+
+async function migrateLegacyData(username){
+  const already = await rawGet('u:' + username + ':members-v1', null);
+  if(already) return;
+  const legacyMembers = await rawGet('members-v1', null);
+  if(!legacyMembers) return;
+  await rawSet('u:' + username + ':members-v1', legacyMembers);
+  const legacyTasks = await rawGet('tasks-v1', []);
+  const legacyVault = await rawGet('vault-v1', []);
+  await rawSet('u:' + username + ':tasks-v1', legacyTasks);
+  await rawSet('u:' + username + ':vault-v1', legacyVault);
+  const dayKeys = await rawListKeys('days-');
+  for(const key of dayKeys){
+    if(key.startsWith('u:')) continue;
+    const data = await rawGet(key, null);
+    if(data) await rawSet('u:' + username + ':' + key, data);
+  }
+}
+
+function logout(){
+  sessionStorage.removeItem(SESSION_KEY);
+  currentUser = null;
+  teamMembers = [];
+  tasks = [];
+  vaultEntries = [];
+  monthCache = {};
+  currentTab = 'tasks';
+  document.getElementById('tab-admin').style.display = 'none';
+  document.getElementById('app-shell').classList.remove('is-open');
+  document.getElementById('auth-gate').classList.remove('hidden');
+  document.getElementById('auth-password').value = '';
+  document.getElementById('auth-confirm').value = '';
+  showAuthError('');
+  document.getElementById('auth-username').focus();
+}
+
+async function enterApp(){
+  document.getElementById('auth-gate').classList.add('hidden');
+  document.getElementById('app-shell').classList.add('is-open');
+  const chip = document.getElementById('user-chip');
+  chip.textContent = currentUser.username;
+  document.getElementById('tab-admin').style.display = isAdmin() ? '' : 'none';
+  await loadWorkspace();
+}
+
+async function loadWorkspace(){
+  teamMembers = await storageGet('members-v1', null);
+  if(!teamMembers){
+    teamMembers = ['Aarav','Isha','Rohan','Meera','Kabir'].map((n,i)=>({id:'m'+i, name:n, color:PALETTE[i%PALETTE.length].bg}));
+    await storageSet('members-v1', teamMembers);
+  }
+  tasks = await storageGet('tasks-v1', []);
+  vaultEntries = await storageGet('vault-v1', []);
+  monthCache = {};
+  renderAll();
+}
+
+/* ---------- init ---------- */
+async function boot(){
+  API_AVAILABLE = await detectApi();
+  let session = null;
+  try{ session = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null'); }catch(e){ session = null; }
+  if(session && session.username){
+    const users = await loadUsers();
+    const user = users.find(u => u.username === session.username);
+    if(user && user.status === 'approved'){
+      currentUser = sessionFromUser(user);
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify(currentUser));
+      await enterApp();
+      return;
+    }
+    sessionStorage.removeItem(SESSION_KEY);
+    if(user) showAuthError(accessMessage(user));
+  }
+  document.getElementById('auth-username').focus();
+}
+
+function renderAll(){
+  renderTasksTab();
+  renderBoardTab();
+  if(isAdmin()) renderAdminTab();
+}
+
+function switchTab(t){
+  if(t==='admin' && !isAdmin()) t = 'tasks';
+  currentTab = t;
+  document.getElementById('tab-tasks').classList.toggle('active', t==='tasks');
+  document.getElementById('tab-board').classList.toggle('active', t==='board');
+  document.getElementById('tab-vault').classList.toggle('active', t==='vault');
+  document.getElementById('tab-admin').classList.toggle('active', t==='admin');
+  document.getElementById('tasks-view').style.display = t==='tasks' ? 'block':'none';
+  document.getElementById('board-view').style.display = t==='board' ? 'block':'none';
+  document.getElementById('vault-view').style.display = t==='vault' ? 'block':'none';
+  document.getElementById('admin-view').style.display = t==='admin' ? 'block':'none';
+  if(t==='board') renderBoardTab();
+  if(t==='vault') renderVaultTab();
+  if(t==='admin') renderAdminTab();
+}
+
+async function renderAdminTab(){
+  if(!isAdmin()) return;
+  adminUsers = await loadUsers();
+  const pending = adminUsers.filter(u => u.status === 'pending');
+  const others = adminUsers.filter(u => u.status !== 'pending');
+  const row = (u) => {
+    const mine = u.username === currentUser.username;
+    const adminCount = adminUsers.filter(x => x.role === 'admin').length;
+    const canDemote = u.role === 'admin' && !mine && adminCount > 1;
+    return `
+    <div class="admin-user">
+      <div>
+        <div class="name">${escapeHtml(u.username)}</div>
+        <div class="meta">joined ${escapeHtml(u.createdAt || '—')}${mine?' · you':''}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span class="status-pill ${u.status}">${escapeHtml(u.status)}</span>
+        ${u.status!=='approved'?`<button class="btn btn-sm btn-teal" onclick="setUserStatus('${u.username}','approved')">Approve</button>`:''}
+        ${u.status!=='rejected' && !mine?`<button class="btn btn-sm btn-danger" onclick="setUserStatus('${u.username}','rejected')">Deny</button>`:''}
+        ${u.role!=='admin' && u.status==='approved'?`<button class="btn btn-sm" onclick="setUserRole('${u.username}','admin')">Make admin</button>`:''}
+        ${canDemote?`<button class="btn btn-sm" onclick="setUserRole('${u.username}','user')">Remove admin</button>`:''}
+      </div>
+    </div>`;
+  };
+  document.getElementById('admin-view').innerHTML = `
+    <div class="section-title" style="margin-top:6px;">Access requests <span class="count-badge">${pending.length} pending</span></div>
+    ${pending.length ? pending.map(row).join('') : '<div class="empty-note">No one is waiting for approval.</div>'}
+    <div class="section-title">People <span class="count-badge">${others.length}</span></div>
+    ${others.length ? others.map(row).join('') : '<div class="empty-note">No other accounts yet.</div>'}
+    <div class="empty-note">The first account on this Daybook is the admin. New sign-ups stay locked out until you approve them.</div>
+  `;
+}
+
+async function setUserStatus(username, status){
+  if(!isAdmin()) return;
+  const users = await loadUsers();
+  const user = users.find(u => u.username === username);
+  if(!user || user.username === currentUser.username) return;
+  user.status = status;
+  if(status !== 'approved' && user.role === 'admin'){
+    const admins = users.filter(u => u.role === 'admin');
+    if(admins.length < 2) return;
+    user.role = 'user';
+  }
+  await rawSet(USERS_KEY, users);
+  renderAdminTab();
+}
+
+async function setUserRole(username, role){
+  if(!isAdmin()) return;
+  const users = await loadUsers();
+  const user = users.find(u => u.username === username);
+  if(!user || user.username === currentUser.username) return;
+  if(role === 'user'){
+    const admins = users.filter(u => u.role === 'admin');
+    if(admins.length < 2) return;
+  }
+  user.role = role;
+  if(role === 'admin') user.status = 'approved';
+  await rawSet(USERS_KEY, users);
+  renderAdminTab();
+}
+
+/* ================= TASKS TAB ================= */
+function statusLabel(s){
+  return {not_started:'Not started', in_progress:'In progress', assigned:'Assigned'}[s] || s;
+}
+
+function taskFormHtml(){
+  const t = editingTaskId ? tasks.find(x=>x.id===editingTaskId) : null;
+  const title = t? t.title : '';
+  const givenBy = t? t.givenBy : '';
+  const due = t? t.dueDate : isoOf(new Date());
+  const status = t? t.status : 'not_started';
+  const assignedTo = t? (t.assignedTo||'') : '';
+  const memberOpts = teamMembers.map(m=>`<option value="${m.name}" ${assignedTo===m.name?'selected':''}>${m.name}</option>`).join('');
+  return `
+  <div class="task-form ${taskFormOpen?'open':''}" id="task-form">
+    <div class="form-grid">
+      <div><label class="field-label">Task</label><input type="text" id="f-title" value="${escapeAttr(title)}" placeholder="e.g. Prepare client deck"></div>
+      <div><label class="field-label">Given by</label><input type="text" id="f-givenby" value="${escapeAttr(givenBy)}" placeholder="e.g. Manager, Client X"></div>
+      <div><label class="field-label">Due date</label><input type="date" id="f-due" value="${due}"></div>
+    </div>
+    <label class="field-label">Status</label>
+    <div class="status-radios" id="f-status-wrap">
+      ${['not_started','in_progress','assigned'].map(s=>`
+        <label class="${status===s?'checked':''}" onclick="onStatusRadioClick('${s}')">
+          <input type="radio" name="f-status" value="${s}" ${status===s?'checked':''}> ${statusLabel(s)}
+        </label>`).join('')}
+    </div>
+    <div id="f-assignee-wrap" style="margin-top:10px;${status==='assigned'?'':'display:none;'}">
+      <label class="field-label">Assigned to</label>
+      <select id="f-assignee"><option value="">Choose team member</option>${memberOpts}</select>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeTaskForm()">Cancel</button>
+      <button class="btn btn-teal" onclick="submitTaskForm()">${t?'Save changes':'Add task'}</button>
+    </div>
+  </div>`;
+}
+
+function onStatusRadioClick(s){
+  document.querySelectorAll('#f-status-wrap label').forEach(l=>l.classList.remove('checked'));
+  event.currentTarget.classList.add('checked');
+  document.getElementById('f-assignee-wrap').style.display = s==='assigned' ? 'block':'none';
+}
+
+function escapeAttr(s){ return (s||'').replace(/"/g,'&quot;'); }
+function escapeHtml(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function openAddTask(){ editingTaskId=null; taskFormOpen=true; renderTasksTab(); document.getElementById('f-title').focus(); }
+function openEditTask(id){ editingTaskId=id; taskFormOpen=true; renderTasksTab(); }
+function closeTaskForm(){ taskFormOpen=false; editingTaskId=null; renderTasksTab(); }
+
+async function submitTaskForm(){
+  const title = document.getElementById('f-title').value.trim();
+  if(!title){ document.getElementById('f-title').focus(); return; }
+  const givenBy = document.getElementById('f-givenby').value.trim();
+  const due = document.getElementById('f-due').value;
+  const statusEl = document.querySelector('input[name="f-status"]:checked');
+  const status = statusEl ? statusEl.value : 'not_started';
+  const assignedTo = status==='assigned' ? document.getElementById('f-assignee').value : '';
+
+  if(editingTaskId){
+    const t = tasks.find(x=>x.id===editingTaskId);
+    Object.assign(t, {title, givenBy, dueDate:due, status, assignedTo});
+  } else {
+    tasks.push({
+      id: 't'+Date.now()+Math.random().toString(36).slice(2,6),
+      title, givenBy, dueDate:due, status, assignedTo,
+      createdAt: isoOf(new Date()), completedAt: null
+    });
+  }
+  await storageSet('tasks-v1', tasks);
+  taskFormOpen=false; editingTaskId=null;
+  renderTasksTab();
+}
+
+async function setTaskStatus(id, status){
+  const t = tasks.find(x=>x.id===id);
+  if(!t) return;
+  t.status = status;
+  if(status!=='assigned') t.assignedTo='';
+  await storageSet('tasks-v1', tasks);
+  renderTasksTab();
+}
+async function completeTask(id){
+  const t = tasks.find(x=>x.id===id);
+  if(!t) return;
+  t.status='completed'; t.completedAt = isoOf(new Date());
+  await storageSet('tasks-v1', tasks);
+  renderTasksTab();
+}
+async function restoreTask(id){
+  const t = tasks.find(x=>x.id===id);
+  if(!t) return;
+  t.status='not_started'; t.completedAt=null;
+  await storageSet('tasks-v1', tasks);
+  renderTasksTab();
+}
+async function deleteTask(id){
+  tasks = tasks.filter(x=>x.id!==id);
+  await storageSet('tasks-v1', tasks);
+  renderTasksTab();
+}
+function toggleCompleted(){ completedOpen=!completedOpen; renderTasksTab(); }
+
+function taskCardHtml(t){
+  const overdue = t.dueDate && t.dueDate < isoOf(new Date()) && t.status!=='completed';
+  return `
+  <div class="task-card ${t.status}">
+    <div class="task-title">${escapeHtml(t.title)}</div>
+    <div class="task-meta">${t.givenBy? 'From '+escapeHtml(t.givenBy)+' &middot; ' : ''}Due ${t.dueDate? fmtShort(t.dueDate):'&mdash;'} ${overdue?'<span class="overdue">&middot; overdue</span>':''}</div>
+    ${t.assignedTo? `<span class="assignee-chip">&rarr; ${escapeHtml(t.assignedTo)}</span>`:''}
+    <div class="task-footer">
+      ${t.status!=='not_started'?`<button class="btn btn-sm btn-ghost" onclick="setTaskStatus('${t.id}','not_started')">Reset</button>`:''}
+      ${t.status!=='in_progress'?`<button class="btn btn-sm btn-ghost" onclick="setTaskStatus('${t.id}','in_progress')">Start</button>`:''}
+      ${t.status!=='assigned'?`<button class="btn btn-sm btn-ghost" onclick="openEditTask('${t.id}')">Assign</button>`:''}
+      <button class="btn btn-sm btn-teal" onclick="completeTask('${t.id}')">Complete</button>
+      <button class="icon-btn" title="Edit" onclick="openEditTask('${t.id}')">&#9998;</button>
+      <button class="icon-btn" title="Delete" onclick="deleteTask('${t.id}')">&times;</button>
+    </div>
+  </div>`;
+}
+
+function renderTasksTab(){
+  const active = tasks.filter(t=>t.status!=='completed');
+  const completed = tasks.filter(t=>t.status==='completed').sort((a,b)=> (b.completedAt||'').localeCompare(a.completedAt||''));
+  const lanes = ['not_started','in_progress','assigned'];
+  const laneNames = {not_started:'Not started', in_progress:'In progress', assigned:'Assigned'};
+
+  const html = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;">
+      <div class="section-title" style="margin:0;">My Tasks <span class="count-badge">${active.length} active</span></div>
+      <button class="btn btn-primary" onclick="${taskFormOpen?'closeTaskForm()':'openAddTask()'}">${taskFormOpen?'Close':'+ New task'}</button>
+    </div>
+    ${taskFormHtml()}
+    <div class="lanes">
+      ${lanes.map(lane=>{
+        const items = active.filter(t=>t.status===lane);
+        return `<div>
+          <div class="lane-head ${lane}">${laneNames[lane]} &middot; ${items.length}</div>
+          <div class="lane">
+            ${items.length? items.map(taskCardHtml).join('') : '<div class="lane-empty">Nothing here</div>'}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <div class="completed-toggle" onclick="toggleCompleted()" style="margin-top:26px;">
+      <span>${completedOpen?'&#9660;':'&#9654;'}</span> Completed tasks <span class="count-badge">${completed.length}</span>
+    </div>
+    <div class="completed-list ${completedOpen?'open':''}">
+      ${completed.length? completed.map(t=>`
+        <div class="completed-row">
+          <div><div class="t">${escapeHtml(t.title)}</div><div class="task-meta">${t.givenBy?'From '+escapeHtml(t.givenBy):''}</div></div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span class="meta">done ${fmtShort(t.completedAt)}</span>
+            <button class="btn btn-sm btn-ghost" onclick="restoreTask('${t.id}')">Restore</button>
+            <button class="icon-btn" onclick="deleteTask('${t.id}')">&times;</button>
+          </div>
+        </div>`).join('') : '<div class="empty-note">No completed tasks yet</div>'}
+    </div>
+  `;
+  document.getElementById('tasks-view').innerHTML = html;
+}
+
+/* ================= BOARD TAB ================= */
+async function ensureMonth(ym){
+  if(monthCache[ym]!==undefined) return monthCache[ym];
+  const data = await storageGet('days-'+ym, {});
+  monthCache[ym] = data;
+  return data;
+}
+function queueSaveMonth(ym){
+  clearTimeout(saveTimers[ym]);
+  saveTimers[ym] = setTimeout(async ()=>{
+    await storageSet('days-'+ym, monthCache[ym]);
+  }, 500);
+}
+
+function memberAvatar(m){
+  return `<div class="avatar" style="background:${m.color}">${escapeHtml(m.name.slice(0,1).toUpperCase())}</div>`;
+}
+
+async function setBoardView(v){
+  boardView = v;
+  await renderBoardTab();
+}
+async function navDate(deltaDays){
+  boardDate = addDays(boardDate, deltaDays);
+  await renderBoardTab();
+}
+async function navToday(){
+  boardDate = todayDate();
+  await renderBoardTab();
+}
+async function jumpToDate(iso){
+  const [y,m,d] = iso.split('-');
+  boardDate = new Date(+y,+m-1,+d);
+  boardView = 'day';
+  await renderBoardTab();
+}
+
+function railRange(){
+  const arr=[];
+  for(let i=-5;i<=5;i++) arr.push(addDays(boardDate,i));
+  return arr;
+}
+
+async function renderBoardControls(){
+  const label = boardView==='month'
+    ? boardDate.toLocaleDateString('en-GB',{month:'long', year:'numeric'})
+    : boardView==='week' ? 'Week of ' + fmtShort(isoOf(weekStart(boardDate)))
+    : fmtLabel(boardDate);
+  return `
+  <div class="board-controls">
+    <div class="date-nav">
+      <button class="icon-btn" onclick="navDate(${boardView==='month'?-30:boardView==='week'?-7:-1})">&larr;</button>
+      <div class="date-label">${label}</div>
+      <button class="icon-btn" onclick="navDate(${boardView==='month'?30:boardView==='week'?7:1})">&rarr;</button>
+      <button class="btn btn-sm btn-ghost" onclick="navToday()">Today</button>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <div class="view-toggle">
+        <button class="${boardView==='day'?'active':''}" onclick="setBoardView('day')">Today</button>
+        <button class="${boardView==='week'?'active':''}" onclick="setBoardView('week')">Week</button>
+        <button class="${boardView==='month'?'active':''}" onclick="setBoardView('month')">Month</button>
+      </div>
+      <button class="btn btn-sm" onclick="openMemberModal()">Team &#9998;</button>
+    </div>
+  </div>`;
+}
+
+function weekStart(d){
+  const day = (d.getDay()+6)%7; // 0=Mon
+  return addDays(d, -day);
+}
+
+async function renderDayRail(){
+  const dates = railRange();
+  const chips = dates.map(d=>{
+    const iso = isoOf(d);
+    const ym = ymOf(d);
+    const dd = ddOf(d);
+    const data = monthCache[ym] ? monthCache[ym][dd] : undefined;
+    const hasData = data && Object.values(data).some(e=>e && (e.task||e.comment||e.leave));
+    const isToday = sameDay(d, todayDate());
+    const isSel = sameDay(d, boardDate);
+    return `<div class="rail-chip ${isToday?'today':''} ${isSel?'selected':''} ${hasData?'has-data':''}" onclick="jumpToDate('${iso}')">
+      <div class="wd">${WEEKDAYS[(d.getDay()+6)%7]}</div>
+      <div class="dn">${d.getDate()}</div>
+      <div class="dot"></div>
+    </div>`;
+  }).join('');
+  return `<div class="day-rail">${chips}</div>`;
+}
+
+async function renderDayView(){
+  const ym = ymOf(boardDate); const dd = ddOf(boardDate);
+  await ensureMonth(ym);
+  const dayData = monthCache[ym][dd] || {};
+  const rows = teamMembers.map(m=>{
+    const entry = dayData[m.id] || {task:'', comment:'', leave:false};
+    const onLeave = !!entry.leave;
+    const leaveToggle = `<label class="leave-toggle"><input type="checkbox" ${onLeave?'checked':''} onchange="toggleLeave('${m.id}',this.checked)"> On leave</label>`;
+    const body = onLeave
+      ? `<div>
+          <label class="field-label">Status</label>
+          <div class="leave-banner">On leave</div>
+        </div>
+        <div>
+          <label class="field-label">Comment</label>
+          <input type="text" value="${escapeAttr(entry.comment)}" placeholder="Reason (optional)"
+            onchange="updateEntry('${m.id}','comment',this.value,this)">
+        </div>`
+      : `<div>
+          <label class="field-label">Task</label>
+          <input type="text" value="${escapeAttr(entry.task)}" placeholder="What are they working on?"
+            onchange="updateEntry('${m.id}','task',this.value,this)">
+        </div>
+        <div>
+          <label class="field-label">Comment</label>
+          <input type="text" value="${escapeAttr(entry.comment)}" placeholder="Notes, blockers, status..."
+            onchange="updateEntry('${m.id}','comment',this.value,this)">
+        </div>`;
+    return `
+    <div class="member-row ${onLeave?'on-leave':''}">
+      <div class="member-tag-wrap">
+        <div class="member-tag">${memberAvatar(m)}<div class="member-name">${escapeHtml(m.name)}</div></div>
+        ${leaveToggle}
+      </div>
+      ${body}
+    </div>`;
+  }).join('');
+  return `<div class="day-list">${rows || '<div class="empty-note">Add team members to start logging their day.</div>'}</div>`;
+}
+
+async function toggleLeave(memberId, checked){
+  const ym = ymOf(boardDate); const dd = ddOf(boardDate);
+  await ensureMonth(ym);
+  if(!monthCache[ym][dd]) monthCache[ym][dd] = {};
+  if(!monthCache[ym][dd][memberId]) monthCache[ym][dd][memberId] = {task:'',comment:'',leave:false};
+  monthCache[ym][dd][memberId].leave = checked;
+  queueSaveMonth(ym);
+  renderBoardTab();
+}
+
+async function updateEntry(memberId, field, value, el){
+  const ym = ymOf(boardDate); const dd = ddOf(boardDate);
+  await ensureMonth(ym);
+  if(!monthCache[ym][dd]) monthCache[ym][dd] = {};
+  if(!monthCache[ym][dd][memberId]) monthCache[ym][dd][memberId] = {task:'',comment:'',leave:false};
+  monthCache[ym][dd][memberId][field] = value;
+  queueSaveMonth(ym);
+  if(el){
+    const row = el.closest('.member-row');
+    let tick = row.querySelector('.save-tick');
+    if(!tick){
+      tick = document.createElement('div');
+      tick.className='save-tick';
+      tick.textContent='saved';
+      row.appendChild(tick);
+    }
+    tick.classList.add('show');
+    setTimeout(()=>tick.classList.remove('show'), 1200);
+  }
+}
+
+async function renderWeekView(){
+  const start = weekStart(boardDate);
+  const dates = Array.from({length:7}, (_,i)=>addDays(start,i));
+  const yms = [...new Set(dates.map(ymOf))];
+  await Promise.all(yms.map(ensureMonth));
+  const todayIso = isoOf(todayDate());
+  const head = dates.map(d=>`<th class="${isoOf(d)===todayIso?'today-col':''}" onclick="jumpToDate('${isoOf(d)}')">${WEEKDAYS[(d.getDay()+6)%7]}<br>${d.getDate()}</th>`).join('');
+  const rows = teamMembers.map(m=>{
+    const cells = dates.map(d=>{
+      const ym=ymOf(d), dd=ddOf(d);
+      const entry = (monthCache[ym][dd]||{})[m.id];
+      if(entry && entry.leave){
+        return `<td class="leave-cell" onclick="jumpToDate('${isoOf(d)}')"><div class="leave-tag">On leave</div>${entry.comment? `<div class="cm">${escapeHtml(entry.comment)}</div>`:''}</td>`;
+      }
+      const task = entry && entry.task ? `<div class="snippet">${escapeHtml(entry.task)}</div>` : '<div class="empty">No entry</div>';
+      const comment = entry && entry.comment ? `<div class="cm">${escapeHtml(entry.comment)}</div>` : '';
+      return `<td onclick="jumpToDate('${isoOf(d)}')">${task}${comment}</td>`;
+    }).join('');
+    return `<tr><th style="text-align:left;">${memberAvatar(m)} ${escapeHtml(m.name)}</th>${cells}</tr>`;
+  }).join('');
+  return `<div class="week-scroll"><table class="week-grid"><thead><tr><th></th>${head}</tr></thead><tbody>${rows}</tbody></table></div>
+  <div class="empty-note" style="margin-top:8px;">Click any day to open and edit it in Today view.</div>`;
+}
+
+async function renderMonthView(){
+  const y = boardDate.getFullYear(), m = boardDate.getMonth();
+  const ym = ymOf(boardDate);
+  await ensureMonth(ym);
+  const first = new Date(y,m,1);
+  const startOffset = (first.getDay()+6)%7;
+  const daysInMonth = new Date(y,m+1,0).getDate();
+  const todayIso = isoOf(todayDate());
+  let cells = '';
+  for(let i=0;i<startOffset;i++) cells += `<div class="month-cell blank"></div>`;
+  for(let day=1; day<=daysInMonth; day++){
+    const dd = pad(day);
+    const iso = `${ym}-${dd}`;
+    const dayData = monthCache[ym][dd];
+    const entries = dayData ? Object.values(dayData) : [];
+    const count = entries.filter(e=>e && !e.leave && (e.task||e.comment)).length;
+    const leaveCount = entries.filter(e=>e && e.leave).length;
+    cells += `<div class="month-cell ${iso===todayIso?'today':''}" onclick="jumpToDate('${iso}')">
+      <div class="dn">${day}</div>
+      ${count? `<div class="badge">${count} logged</div>`:''}
+      ${leaveCount? `<div class="badge-leave">${leaveCount} on leave</div>`:''}
+    </div>`;
+  }
+  const heads = WEEKDAYS.map(w=>`<div class="wd-head">${w}</div>`).join('');
+  return `<div class="month-grid">${heads}${cells}</div>`;
+}
+
+async function renderBoardTab(){
+  const controls = await renderBoardControls();
+  let body = '';
+  if(boardView==='day'){
+    const rail = await renderDayRail();
+    body = rail + await renderDayView();
+  } else if(boardView==='week'){
+    body = await renderWeekView();
+  } else {
+    body = await renderMonthView();
+  }
+  document.getElementById('board-view').innerHTML = controls + body;
+}
+
+/* ---------- member modal ---------- */
+function openMemberModal(){
+  editingMembers = teamMembers.map(m=>({...m}));
+  renderMemberModal();
+  document.getElementById('member-modal').classList.add('open');
+}
+function closeMemberModal(){
+  document.getElementById('member-modal').classList.remove('open');
+}
+function renderMemberModal(){
+  const rows = editingMembers.map((m,i)=>`
+    <div class="member-edit-row">
+      <div class="swatch" style="background:${m.color}"></div>
+      <input type="text" value="${escapeAttr(m.name)}" oninput="editingMembers[${i}].name=this.value">
+      <button class="icon-btn" onclick="removeMemberRow(${i})">&times;</button>
+    </div>`).join('');
+  document.getElementById('member-edit-list').innerHTML = rows || '<div class="empty-note">No members yet</div>';
+}
+function addMemberRow(){
+  const idx = editingMembers.length;
+  editingMembers.push({id:'m'+Date.now()+idx, name:'New member', color:PALETTE[idx%PALETTE.length].bg});
+  renderMemberModal();
+}
+function removeMemberRow(i){
+  editingMembers.splice(i,1);
+  renderMemberModal();
+}
+async function saveMemberModal(){
+  teamMembers = editingMembers.filter(m=>m.name.trim()).map(m=>({...m, name:m.name.trim()}));
+  await storageSet('members-v1', teamMembers);
+  closeMemberModal();
+  renderBoardTab();
+}
+
+/* ---------- excel export ---------- */
+async function exportToExcel(){
+  const btn = event ? event.currentTarget : null;
+  const origText = btn ? btn.textContent : '';
+  if(btn){ btn.textContent = 'Preparing...'; btn.disabled = true; }
+
+  try{
+    const statusLabels = {not_started:'Not started', in_progress:'In progress', assigned:'Assigned', completed:'Completed'};
+
+    // ---- Sheet 1: My Tasks (active) ----
+    const activeRows = tasks.filter(t=>t.status!=='completed').map(t=>({
+      'Task': t.title,
+      'Given By': t.givenBy || '',
+      'Due Date': t.dueDate || '',
+      'Status': statusLabels[t.status] || t.status,
+      'Assigned To': t.assignedTo || '',
+      'Created': t.createdAt || ''
+    }));
+
+    // ---- Sheet 2: Completed Tasks ----
+    const completedRows = tasks.filter(t=>t.status==='completed').map(t=>({
+      'Task': t.title,
+      'Given By': t.givenBy || '',
+      'Due Date': t.dueDate || '',
+      'Assigned To': t.assignedTo || '',
+      'Created': t.createdAt || '',
+      'Completed On': t.completedAt || ''
+    }));
+
+    // ---- Sheet 3: Team Day Board (every logged date) ----
+    const dayKeys = await storageListKeys('days-');
+    const memberNameById = {};
+    teamMembers.forEach(m=> memberNameById[m.id] = m.name);
+
+    const boardRows = [];
+    for(const key of dayKeys){
+      const ym = key.replace(/^days-/, '');
+      const monthData = await storageGet(key, {});
+      Object.keys(monthData).sort().forEach(dd=>{
+        const dayEntries = monthData[dd] || {};
+        Object.keys(dayEntries).forEach(memberId=>{
+          const e = dayEntries[memberId];
+          if(!e || (!e.task && !e.comment && !e.leave)) return;
+          boardRows.push({
+            'Date': `${ym}-${dd}`,
+            'Team Member': memberNameById[memberId] || memberId,
+            'Task': e.leave ? '' : (e.task || ''),
+            'Comment': e.comment || '',
+            'On Leave': e.leave ? 'Yes' : ''
+          });
+        });
+      });
+    }
+    boardRows.sort((a,b)=> a.Date.localeCompare(b.Date));
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(activeRows), 'My Tasks');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(completedRows), 'Completed Tasks');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(boardRows), 'Team Day Board');
+
+    const stamp = isoOf(new Date());
+    XLSX.writeFile(wb, `daybook-export-${stamp}.xlsx`);
+  } finally {
+    if(btn){ btn.textContent = origText; btn.disabled = false; }
+  }
+}
+
+/* ---------- vault tab ---------- */
+function vaultFormHtml(){
+  const v = editingVaultId ? vaultEntries.find(x=>x.id===editingVaultId) : null;
+  const platform = v? v.platform : '';
+  const username = v? v.username : '';
+  const password = v? v.password : '';
+  const url = v? v.url : '';
+  const notes = v? v.notes : '';
+  const pwType = revealedPasswordInForm ? 'text' : 'password';
+  const extraRows = vaultExtraFields.map((f,i)=>`
+    <div class="extra-field-row">
+      <input type="text" placeholder="Label (e.g. PIN, Recovery code)" value="${escapeAttr(f.label)}" oninput="vaultExtraFields[${i}].label=this.value">
+      <input type="text" placeholder="Value" value="${escapeAttr(f.value)}" oninput="vaultExtraFields[${i}].value=this.value">
+      <button class="icon-btn" onclick="removeExtraField(${i})">&times;</button>
+    </div>`).join('');
+  return `
+  <div class="task-form ${vaultFormOpen?'open':''}" id="vault-form">
+    <div class="vault-warning">This is saved in the same SQLite database as the rest of Daybook — it isn't encrypted. Treat it like a private notes file rather than a dedicated password manager, and keep data/daybook.db off GitHub.</div>
+    <div class="form-grid" style="grid-template-columns:1fr 1fr;">
+      <div><label class="field-label">Platform / Service</label><input type="text" id="v-platform" value="${escapeAttr(platform)}" placeholder="e.g. Gmail, AWS, Company VPN"></div>
+      <div><label class="field-label">Website URL</label><input type="text" id="v-url" value="${escapeAttr(url)}" placeholder="https://..."></div>
+      <div><label class="field-label">Username / Email</label><input type="text" id="v-username" value="${escapeAttr(username)}" placeholder="e.g. name@company.com"></div>
+      <div>
+        <label class="field-label">Password</label>
+        <div class="pw-field-wrap">
+          <input type="${pwType}" id="v-password" value="${escapeAttr(password)}" placeholder="Password" autocomplete="off">
+          <button type="button" class="btn btn-sm" id="v-password-toggle" onclick="toggleFormPassword()">${revealedPasswordInForm?'Hide':'Show'}</button>
+        </div>
+      </div>
+    </div>
+    <label class="field-label">Notes</label>
+    <input type="text" id="v-notes" value="${escapeAttr(notes)}" placeholder="Anything else worth remembering" style="margin-bottom:12px;">
+    <label class="field-label">Custom fields</label>
+    ${extraRows}
+    <button class="btn btn-sm btn-ghost" onclick="addExtraField()">+ Add custom field</button>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeVaultForm()">Cancel</button>
+      <button class="btn btn-teal" onclick="submitVaultForm()">${v?'Save changes':'Add login'}</button>
+    </div>
+  </div>`;
+}
+
+function openAddVault(){ editingVaultId=null; vaultExtraFields=[]; revealedPasswordInForm=false; vaultFormOpen=true; renderVaultTab(); }
+function openEditVault(id){
+  const v = vaultEntries.find(x=>x.id===id);
+  editingVaultId=id; vaultExtraFields = v && v.extra ? v.extra.map(f=>({...f})) : []; revealedPasswordInForm=false; vaultFormOpen=true; renderVaultTab();
+}
+function closeVaultForm(){ vaultFormOpen=false; editingVaultId=null; vaultExtraFields=[]; renderVaultTab(); }
+function addExtraField(){ vaultExtraFields.push({label:'',value:''}); renderVaultTab(); }
+function removeExtraField(i){ vaultExtraFields.splice(i,1); renderVaultTab(); }
+
+async function submitVaultForm(){
+  const platform = document.getElementById('v-platform').value.trim();
+  if(!platform){ document.getElementById('v-platform').focus(); return; }
+  const username = document.getElementById('v-username').value.trim();
+  const password = document.getElementById('v-password').value;
+  const url = document.getElementById('v-url').value.trim();
+  const notes = document.getElementById('v-notes').value.trim();
+  const extra = vaultExtraFields.filter(f=>f.label.trim() || f.value.trim());
+
+  if(editingVaultId){
+    const v = vaultEntries.find(x=>x.id===editingVaultId);
+    Object.assign(v, {platform, username, password, url, notes, extra});
+  } else {
+    vaultEntries.push({
+      id:'v'+Date.now()+Math.random().toString(36).slice(2,6),
+      platform, username, password, url, notes, extra,
+      createdAt: isoOf(new Date())
+    });
+  }
+  await storageSet('vault-v1', vaultEntries);
+  vaultFormOpen=false; editingVaultId=null; vaultExtraFields=[];
+  renderVaultTab();
+}
+async function deleteVaultEntry(id){
+  vaultEntries = vaultEntries.filter(x=>x.id!==id);
+  await storageSet('vault-v1', vaultEntries);
+  renderVaultTab();
+}
+function toggleFormPassword(){
+  const input = document.getElementById('v-password');
+  const btn = document.getElementById('v-password-toggle');
+  if(!input) return;
+  revealedPasswordInForm = !revealedPasswordInForm;
+  input.type = revealedPasswordInForm ? 'text' : 'password';
+  if(btn) btn.textContent = revealedPasswordInForm ? 'Hide' : 'Show';
+}
+function toggleReveal(id){
+  if(revealedVaultIds.has(id)) revealedVaultIds.delete(id); else revealedVaultIds.add(id);
+  const revealed = revealedVaultIds.has(id);
+  const input = document.getElementById('vault-pw-' + id);
+  const btn = document.getElementById('vault-pw-btn-' + id);
+  if(input) input.type = revealed ? 'text' : 'password';
+  if(btn) btn.textContent = revealed ? 'Hide' : 'Show';
+}
+function copyToClipboard(text, btn){
+  navigator.clipboard.writeText(text||'').then(()=>{
+    const orig = btn.textContent;
+    btn.textContent = '✓';
+    setTimeout(()=>{ btn.textContent = orig; }, 1000);
+  }).catch(()=>{});
+}
+
+function vaultCardHtml(v){
+  const revealed = revealedVaultIds.has(v.id);
+  const extraRows = (v.extra||[]).map(f=>`
+    <div class="vault-row"><span class="k">${escapeHtml(f.label||'Field')}</span><span class="v">${escapeHtml(f.value)}</span></div>`).join('');
+  return `
+  <div class="vault-card">
+    <div class="vault-platform">${escapeHtml(v.platform)}</div>
+    ${v.username? `<div class="vault-row"><span class="k">User</span><span class="v">${escapeHtml(v.username)}</span>
+      <div class="vault-actions"><button class="icon-btn" onclick="copyToClipboard('${escapeAttr(v.username)}', this)" title="Copy">&#128203;</button></div></div>`:''}
+    ${v.password? `<div class="vault-row"><span class="k">Password</span>
+      <input class="vault-pw" id="vault-pw-${v.id}" type="${revealed?'text':'password'}" value="${escapeAttr(v.password)}" readonly autocomplete="off" spellcheck="false">
+      <div class="vault-actions">
+        <button class="btn btn-sm" id="vault-pw-btn-${v.id}" onclick="toggleReveal('${v.id}')">${revealed?'Hide':'Show'}</button>
+        <button class="icon-btn" onclick="copyToClipboard(document.getElementById('vault-pw-${v.id}').value, this)" title="Copy">&#128203;</button>
+      </div></div>`:''}
+    ${v.url? `<div class="vault-row"><span class="k">Site</span><span class="v"><a href="${escapeAttr(v.url)}" target="_blank" rel="noopener">${escapeHtml(v.url.replace(/^https?:\/\//,''))}</a></span></div>`:''}
+    ${v.notes? `<div class="vault-row"><span class="k">Notes</span><span class="v">${escapeHtml(v.notes)}</span></div>`:''}
+    ${extraRows}
+    <div class="vault-footer">
+      <button class="icon-btn" title="Edit" onclick="openEditVault('${v.id}')">&#9998;</button>
+      <button class="icon-btn" title="Delete" onclick="deleteVaultEntry('${v.id}')">&times;</button>
+    </div>
+  </div>`;
+}
+
+function renderVaultTab(){
+  const html = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;">
+      <div class="section-title" style="margin:0;">Vault <span class="count-badge">${vaultEntries.length} saved</span></div>
+      <button class="btn btn-primary" onclick="${vaultFormOpen?'closeVaultForm()':'openAddVault()'}">${vaultFormOpen?'Close':'+ Add login'}</button>
+    </div>
+    ${vaultFormOpen? vaultFormHtml() : ''}
+    <div class="vault-list">
+      ${vaultEntries.length? vaultEntries.map(vaultCardHtml).join('') : '<div class="empty-note">Nothing saved yet — add your first login above.</div>'}
+    </div>
+  `;
+  document.getElementById('vault-view').innerHTML = html;
+}
+
+boot();
+</script>
+</body>
+</html>

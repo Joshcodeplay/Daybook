@@ -1,0 +1,10 @@
+{
+  "name": "daybook",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Daybook — tasks, team day board, and vault, backed by SQLite",
+  "scripts": {
+    "start": "node --experimental-sqlite server.js",
+    "dev": "node --experimental-sqlite server.js"
+  }
+}
